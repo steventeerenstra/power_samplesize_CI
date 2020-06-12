@@ -1,3 +1,4 @@
+** simulation for power when given proportions in two independent samples via chi-square or FisherExact;
 %let n_sim=1000;
 %let n0=22;
 %let n1=22;
@@ -30,6 +31,7 @@ ods select all;
 data ChiSq_rej; set ChiSq; if Statistic="Chi-Square";reject=(prob< &twosided_p);run;
 * use table probability for FisherExact;
 data FishersExact_rej; set FishersExact; if Name1="P_TABLE"; reject=(nvalue1< &twosided_p);run;
+title "power of Chi Square test of proportion &p0 vs &p1 in &n0 vs &n1 subjects based on &n_sim simulations";
 proc means data=ChiSq_rej n mean; var reject;run;
-
+title "power of Fisher's Exact test (table probability) of proportion &p0 vs &p1 in &n0 vs &n1 subjects based on &n_sim simulations";
 proc means data=FishersExact_rej n mean; var reject;run;
