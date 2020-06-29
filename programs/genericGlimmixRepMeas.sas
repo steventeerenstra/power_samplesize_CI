@@ -48,7 +48,7 @@ do time=1 to &n_rep;
 		%trt_clusterTime(); * code to set the variable trt depending on cluster, time;
 		%clussize_ClusterTimeTrt(); *code for setting the variable clussize depending on cluster, time,trt, possibly if time varying; 
 			do subject=1 to clussize;
-			/***** build outcome separate records for H0 and H1 ****/
+			/***** build outcome separate records for H0 and H1, one for each subjects in a cluster ****/
 			hypo=0; %data_H0(); output;
 			hypo=1; %data_H1(); output;
 			end;
