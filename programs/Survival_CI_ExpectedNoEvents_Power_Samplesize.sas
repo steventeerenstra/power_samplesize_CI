@@ -16,6 +16,21 @@ end; end;
 run;
 proc print data=a noobs;by hr;var total_samplesize fraction ll_hr ul_hr;run;
 
+*** critical value in terms of HR given a number of events and critical p-value (at interim);
+data a; 
+alpha=0.0001; *two-sided;
+hr=0.7;
+theta=0.5; * proportion in experimental group;
+events=83;* number of events;
+logse=1/sqrt(events*theta*(1-theta)); * standard error on logscale;
+loghr=-probit(1-alpha/2)*logse; * to get loghr + probit(1-alpha/2)*logse < log(1);
+hr=exp(loghr);
+run;
+proc print;run;
+
+
+
+
 ** expected number of events;
 
 data a;
