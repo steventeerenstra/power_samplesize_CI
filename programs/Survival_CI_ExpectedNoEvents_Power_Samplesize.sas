@@ -144,13 +144,13 @@ proc print data=a;run;
 
 ** power from events, here 850 events gives 84% power for two-sided alpha is 0.025**;
 data a;
-alpha=0.05/2;
+alpha=0.05; * two-sided alpha;
 d=(1-0.17)*850;
 theta=0.5; * fraction randomized to experimental, = 0.5 for 1:1 rando;
 se=1/sqrt( d*theta*(1-theta) );
 hr=0.8;
 delta=abs( log(hr) );
-power=probnorm(delta/se - probit(1-alpha/2) );
+power=probnorm(delta/se - probit(1-alpha/2) );*here the division by 2 for one-sided alpha;
 run;
 
 proc print;run;
