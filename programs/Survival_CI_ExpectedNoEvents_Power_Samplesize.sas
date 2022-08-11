@@ -174,3 +174,19 @@ d=( probit(1-alpha/2) + probit(1-beta) )**2  / ( delta**2 * theta * (1-theta)) ;
 run;
 
 proc print;run;
+
+
+***** Point Estimate of hr < 1 with a certain power ****;
+data a;
+* if the true effect is on log scale log_hr***;
+* then it its sampling distribution for a given standard error log_se ****;
+* is N(log_hr, log_se), so the point estimate is < 0 with probability power if ****;
+* log_hr+ z_{power}*log_se <=0 , because z_{power} has as left (so cumulative) probability "power";  
+d= 211; *number of events;
+theta=1/3; *fraction in the control arm;
+power=0.8;
+log_se=1/sqrt( theta*(1-theta)*d  );
+log_hr =-probit(power)*log_se;
+hr=exp(log_hr);
+run;
+proc print data=a;run; 
