@@ -1,0 +1,13 @@
+proc format;
+value powerfmt
+low -<0.70 = 'lightgray'
+0.70-<0.79 = 'green'
+0.79-high = 'lightgreen'
+;
+run;
+
+
+proc tabulate data=a; var power;
+class surv_ctl_landmark surv_intv_landmark n_ctl n_intv accrual fu;
+table surv_ctl_landmark*surv_intv_landmark*n_ctl*n_intv,accrual*fu*power=' '*mean=' '*[style=[background=powerfmt.]];
+run;
