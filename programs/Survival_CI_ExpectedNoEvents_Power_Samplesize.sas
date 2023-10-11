@@ -193,16 +193,24 @@ proc print data=a;run;
 
 
 **** power from accrual, follow-up, number of patients etc ***;
-data a;
-alpha=0.05; * two-sided;
+** from different scenarios put in a dataset;
+data b; input hr N_c N_i accrual fu;
+datalines;
+0.7 100 100 12 6
+0.65 100 100 12 6
+;
+run;
+
+
+data a;set b;
+do alpha=0.05, 0.10; * two-sided;
+power_aim=0.8;
 * according to Cox proportional hazards, Fundamentals of clinical trials, Friedman et al., p. 154;
-accrual= 30; *total accrual time, so 576/30=19.2 per month;
-fu=0.5; * followup after finishing recruitment;
-median_c= 8.2; * median control group;
-hr=0.7; *hazard ratio;
-N_c= 192; * sample size in the control group;
-N_i=2*192; * sample size intervention group;
+* provide hr N_c N_i accrual fu (=follow-up after last patient;
+median_c= 3; * median control group;
 theta=N_c/(N_i+N_c);
+* events needed;
+d_needed=(probit(1-alpha/2) + probit(power_aim))**2 /   ( (log(hr))**2 * theta*(1-theta));
 * control group;
 lambda_c= - log(0.5)/median_c;
 proportiondeaths_c=(	exp(-lambda_c*fu) -  exp(-lambda_c*(accrual+fu))	) / (lambda_c*accrual);
@@ -217,6 +225,8 @@ events=events_c+events_i;
 se=1/sqrt( events*theta*(1-theta) );
 delta=abs( log(hr) );
 power=probnorm(delta/se - probit(1-alpha/2) );
+output;
+end;
 run;
 
-proc print data=a;var alpha accrual fu median_c hr N_c N_i events power; run;
+proc print data=a noobs;var alpha power_aim d_needed accrual fu median_c hr N_c N_i theta events power; run;
