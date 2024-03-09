@@ -1,5 +1,7 @@
 These are files to still combine for   
-* reading in specific cluster sizes   
+* reading in specific cluster sizes 
 * checking designs (allocation, cluster sizes)   
 * using new sas random number generators   
+* randomize given clusters with cluster sizes to sequences instead of generating clusters from a random sample  
+
 
