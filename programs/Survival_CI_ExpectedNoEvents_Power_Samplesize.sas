@@ -192,12 +192,12 @@ run;
 proc print data=a;run; 
 
 
-**** power from accrual, follow-up, number of patients etc ***;
+**** power and precision (95-CI) from accrual, follow-up, number of patients etc ***;
 ** from different scenarios put in a dataset;
-data b; input hr N_c N_i accrual fu;
+data b; input hr median_c N_c N_i accrual fu;
 datalines;
-0.7 100 100 12 6
-0.65 100 100 12 6
+0.70  3 100 100 12 6
+0.65  3 100 100 12 6
 ;
 run;
 
@@ -207,7 +207,6 @@ do alpha=0.05, 0.10; * two-sided;
 power_aim=0.8;
 * according to Cox proportional hazards, Fundamentals of clinical trials, Friedman et al., p. 154;
 * provide hr N_c N_i accrual fu (=follow-up after last patient;
-median_c= 3; * median control group;
 theta=N_c/(N_i+N_c);
 * events needed;
 d_needed=(probit(1-alpha/2) + probit(power_aim))**2 /   ( (log(hr))**2 * theta*(1-theta));
@@ -225,8 +224,12 @@ events=events_c+events_i;
 se=1/sqrt( events*theta*(1-theta) );
 delta=abs( log(hr) );
 power=probnorm(delta/se - probit(1-alpha/2) );
+* precision around the target hr;
+hr_95lower=exp( log(hr)- 1.96*se    ); 
+hr_95upper=exp( log(hr)+ 1.96*se    ); 
 output;
 end;
 run;
 
-proc print data=a noobs;var alpha power_aim d_needed accrual fu median_c hr N_c N_i theta events power; run;
+proc print data=a noobs;var alpha power_aim d_needed accrual fu median_c hr N_c N_i theta events power hr_95lower hr hr_95upper; 
+run;
