@@ -232,4 +232,46 @@ end;
 run;
 
 proc print data=a noobs;var alpha power_aim d_needed accrual fu median_c hr N_c N_i theta events power hr_95lower hr hr_95upper; 
+run;   
+
+
+**** power and precision (95-CI) from accrual, follow-up, number of patients etc ***;
+** from different scenarios put in a dataset in terms of control proportion that is eventfree at certain milestone;
+data b; input hr eventfree_c milestone_c N_c N_i accrual fu;
+datalines;
+0.6  0.6 60 106 106 36 60
+;
+run;
+
+
+data a;set b;
+do alpha=0.05, 0.10; * two-sided;
+power_aim=0.8;
+* according to Cox proportional hazards, Fundamentals of clinical trials, Friedman et al., p. 154;
+* provide hr N_c N_i accrual fu (=follow-up after last patient;
+theta=N_c/(N_i+N_c);
+* events needed;
+d_needed=(probit(1-alpha/2) + probit(power_aim))**2 /   ( (log(hr))**2 * theta*(1-theta));
+* control group;
+lambda_c= - log(eventfree_c)/milestone_c;
+proportiondeaths_c=(	exp(-lambda_c*fu) -  exp(-lambda_c*(accrual+fu))	) / (lambda_c*accrual);
+events_c=N_c*(1- proportiondeaths_c);
+* intervention group;
+lambda_i= hr*lambda_c;
+proportiondeaths_i=(	exp(-lambda_i*fu) -  exp(-lambda_i*(accrual+fu))	) / (lambda_i*accrual);
+events_i=N_i*(1- proportiondeaths_i);
+* total numbers of events;
+events=events_c+events_i;
+* power;
+se=1/sqrt( events*theta*(1-theta) );
+delta=abs( log(hr) );
+power=probnorm(delta/se - probit(1-alpha/2) );
+* precision around the target hr;
+hr_95lower=exp( log(hr)- 1.96*se    ); 
+hr_95upper=exp( log(hr)+ 1.96*se    ); 
+output;
+end;
+run;
+
+proc print data=a noobs;var alpha power_aim d_needed accrual fu eventfree_c milestone_c hr N_c N_i theta events power hr_95lower hr hr_95upper; 
 run;
