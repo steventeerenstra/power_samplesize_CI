@@ -31,16 +31,18 @@ proc print;run;
 
 
 
-** expected number of events;
+
+
+** expected number of events for different follow-up, so projection of timings of events *****;
 
 data a;
 * according to Cox proportional hazards, Fundamentals of clinical trials, Friedman et al., p. 154;
-accrual= 12 ; *accrual time;
-fu=2; * followup after finishing recruitment;
-median_c= 4; * median control group;
-median_i= 6; * median intervention group;
-N_c= 32; * sample size in the control group;
-N_i= 96; * sample size intervention group;
+accrual= 26 ; *accrual time;
+do fu=1, 10, 26; * followup after finishing recruitment;
+median_c= 28.5; * median control group;
+median_i=median_c/0.7; * median intervention group;
+N_c= 220; * sample size in the control group;
+N_i= 220; * sample size intervention group;
 * control group;
 lambda_c= - log(0.5)/median_c;
 lambda_i= -log(0.5)/median_i;
@@ -53,9 +55,13 @@ proportiondeaths_i=(	exp(-lambda_i*fu) -  exp(-lambda_i*(accrual+fu))	) / (lambd
 events_i=N_i*(1- proportiondeaths_i);
 * total numbers of events;
 events=events_c+events_i;
+output;
+end;
 run;
 
 proc print data=a;run;
+***********************************
+
 
 * valided for OS with 15 mo vs 20 mo, 
 * 32 pat/month, and 664 subjects in total, 332 vs 332,
