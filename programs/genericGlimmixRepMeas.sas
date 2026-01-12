@@ -40,26 +40,23 @@ do sim=&sim_start to &sim_end;
 	do cluster= 1  to &n_clus;
 	*cluster level random effect;
 	random_c=sqrt(sigma2_c)*rand('normal');
-	%clussize_cluster();* code setting the variable "clussize", possibly varying at baseline, so across clusters; 
-
-do time=1 to &n_rep; 		
-		time_class=time; * class variable to indicate random time effect;	
-		* treatment indicator in stepped wedge design;
-		%trt_clusterTime(); * code to set the variable trt depending on cluster, time;
-		%clussize_ClusterTimeTrt(); *code for setting the variable clussize depending on cluster, time,trt, possibly if time varying; 
+		do time=1 to &n_rep; 		
+			time_class=time; * class variable to indicate random time effect;	
+			* treatment indicator in stepped wedge design;
+			%trt_clusterTime(); * code to set the variable trt depending on cluster, time;
+			%clussize_ClusterTimeTrt(); *code for setting the variable clussize depending on cluster, time,trt, possibly if time varying;
+			%missing_ClusterTimeTrt(); * code to setting the variable missing depending on cluster, time, trt` (e.g. implementation periods);  
 			do subject=1 to clussize;
-			/***** build outcome separate records for H0 and H1, one for each subjects in a cluster ****/
-			hypo=0; %data_H0(); output;
-			hypo=1; %data_H1(); output;
+				if missing=0 then 
+				do; * build outcome separate records for H0 and H1, one for each subjects in a cluster;
+					hypo=0; %data_H0(); output;
+					hypo=1; %data_H1(); output;
+				end; 
 			end;
 		end;
 	end;
 end;
 run;
-
-* incorporate missing data due to design (i.e., implementation periods);
-%missing_data();
-
 %mend simulate_data;
 
 
@@ -162,7 +159,7 @@ data &ds_out; merge _conv _fixed ; by sim hypo; * note merge by sim and hypo;
 	*/
 	analysis="&proc_options";
 run;
-%mend re_analyze_repmeas;
+%mend glimmix_repmeas;
 
 
 %macro sim_cluster_repmeas(n_clus=, n_rep=, 
@@ -235,19 +232,23 @@ data _null_;datetime = put(datetime(), datetime19.);call symput('datetime',datet
 
 
 
-%macro missing_data();* missing data by design (e.g. implementation periods) depending on "cluster", "time"; %mend; 
-%macro clussize_cluster();
-/* code to set the variable "clussize" if constant over time but possibly varying over clusters*/
-/* %local avg_clussize; %local cv_clussize;%let avg_clussize=10;%let cv_clussize=0;
-%if &cv_clussize ne 0 %then
-clussize=round( &avg_clussize * rand('gamma', 1/&cv_clussize**2) * &cv_clussize**2) ;
-%else clussize=&avg_clussize;
-*/
+%macro missing_ClusterTimeTrt();
+* missing data by design (e.g. implementation periods) depending on variables cluster, time, trt;
+* for example: missing=(cluster=2 and time=3);
 %mend;
-%macro clussize_clusterTimeTrt(); 
+
+%macro clussize_ClusterTimeTrt(); 
 *code for setting "clussize" depending on "cluster", "time","trt", possibly if time varying; 
 clussize=30*(trt=0) + 49*(trt=1);
+/* another example is; 
+* code to set the variable "clussize" if constant over time but possibly varying over clusters;
+* %local avg_clussize; * %local cv_clussize;* %let avg_clussize=10; * %let cv_clussize=0;
+* %if &cv_clussize ne 0 %then
+clussize=round( &avg_clussize * rand('gamma', 1/&cv_clussize**2) * &cv_clussize**2) ;
+* %else clussize=&avg_clussize;
+*/
 %mend;
+
 %macro data_H0(); * data generation depending ont time_effect{time} and random effect of cluster: random_c;
 p= max(0.00001, min(time_effect{time}+random_c, 0.99999) ); * no  probability equal or above 1 or below or equal 0;
 outcome= rand('bernouilli',p);
@@ -257,15 +258,17 @@ p=max(0.00001, min(time_effect{time}+random_c+trt*&delta_trt, 0.99999) ); * no  
 outcome=rand('bernoulli',p);
 %mend;		
 
+%let n_time_effects=25;
 data data_time_effects; 
-array time_effect{10} time_effect1-time_effect10; 
-do i=1 to 10; time_effect{i}= 0.23+ (i-1)*( 0.001 )/ 10;
+array time_effect{&n_time_effects} time_effect1-time_effect&n_time_effects; 
+do i=1 to &n_time_effects; time_effect{i}= 0.23+ (i-1)*( 0.001 )/ 10;
 * drift due to time  with +1% over 10 years;
 end;run; 
 
 %macro glimmix_model(); 
 * glimmix model statement, at least: model outcome = trt <time>/ solution cl;
 * time can be specified as class (then specify "noint" in the model) or not or even be left out;
+* if not specified as class then it is becomes a slope;
 /* binary error, identity link with time as categorical
 class time;
 model outcome (reference=first)= trt / dist=binary link=identity solution cl noint ;
@@ -278,6 +281,7 @@ model outcome (reference=first)= trt / dist=binary link=identity solution cl ;
 random intercept / subject=cluster; */
 %mend;
 
+libname dir "."; * for saving some files;
 
 *for debugging;
 options symbolgen mlogic mprint; 
@@ -288,7 +292,7 @@ options nosymbolgen nomlogic nomprint;
 *code to define "trt" depending on "cluster","time";
 trt=(time > cluster);
 %mend;
-* with time as continuous;
+* with time as continuous,so the analysis only estimate for a slope for time from the generated data; 
 %macro glimmix_model(); 
 * glimmix model statement, at least: model outcome = trt <time>/ solution cl;
 * time can be specified as class (then specify "noint" in the model) or not or even be left out;
@@ -299,8 +303,7 @@ random intercept / subject=cluster;
 
 %sim_cluster_repmeas(n_clus=2, n_rep=3, delta_trt=0.22, data_time_effects=data_time_effects,
 sigma2_c=( 0.01 )**2, proc_options=%str(method=laplace),
-n_sim=400, sim_block=200,seedstartrow=1, dir='.', store=%str(work), ds_out=dir.c2_r3_tx22_timecont);
-
+n_sim=10, sim_block=10,seedstartrow=1, dir='.', store=%str(work), ds_out=dir.c2_r3_tx22_timecont);
 
 * with time as class;
 %macro glimmix_model(); 
@@ -314,7 +317,7 @@ random intercept / subject=cluster;
 
 %sim_cluster_repmeas(n_clus=2, n_rep=3, delta_trt=0.22, data_time_effects=data_time_effects,
 sigma2_c=( 0.01 )**2, proc_options=%str(method=laplace),
-n_sim=400, sim_block=200,seedstartrow=1, dir='.', store=%str(work), ds_out=dir.c2_r3_tx22_timeclass);
+n_sim=10, sim_block=10,seedstartrow=1, dir='.', store=%str(work), ds_out=dir.c2_r3_tx22_timeclass);
 
 * with time assumed to absent;
 %macro glimmix_model(); 
@@ -327,14 +330,25 @@ random intercept / subject=cluster;
 
 %sim_cluster_repmeas(n_clus=2, n_rep=3, delta_trt=0.22, data_time_effects=data_time_effects,
 sigma2_c=( 0.01 )**2, proc_options=%str(method=laplace),
-n_sim=400, sim_block=200,seedstartrow=1, dir='.', store=%str(work), ds_out=dir.c2_r3_tx22_notimet);
+n_sim=10, sim_block=10,seedstartrow=1, dir='.', store=%str(work), ds_out=dir.c2_r3_tx22_notimet);
 
+
+* how to check design;
+proc tabulate data=_outcomes;where sim=1;
+class cluster time;
+var trt;
+table cluster,time*trt*mean*f=2.1;
+run;
 
 
 ********************** with 5 measurements (2 retrospective) *******************************;
 %macro trt_clusterTime();
 *code to define "trt" depending on "cluster","time";
 trt=(time > cluster+2);
+%mend;
+
+%macro missing_ClusterTimeTrt();
+missing=(cluster=2 and time=3);
 %mend;
 
 * with time as continuous;
@@ -348,7 +362,7 @@ random intercept / subject=cluster;
 
 %sim_cluster_repmeas(n_clus=2, n_rep=5, delta_trt=0.22, data_time_effects=data_time_effects,
 sigma2_c=( 0.01 )**2, proc_options=%str(method=laplace),
-n_sim=400, sim_block=200,seedstartrow=1, dir='.', store=%str(work), ds_out=dir.c2_r5_tx22_timecont);
+n_sim=10, sim_block=10,seedstartrow=1, dir='.', store=%str(work), ds_out=dir.c2_r5_tx22_timecont);
 
 ** with time as class; 
 %macro glimmix_model(); 
@@ -362,16 +376,16 @@ random intercept / subject=cluster;
 
 %sim_cluster_repmeas(n_clus=2, n_rep=5, delta_trt=0.22, data_time_effects=data_time_effects,
 sigma2_c=( 0.01 )**2, proc_options=%str(method=laplace),
-n_sim=400, sim_block=400,seedstartrow=1, dir='.', store=%str(work), ds_out=dir.c2_r5_tx22_timeclass);
+n_sim=10, sim_block=10,seedstartrow=1, dir='.', store=%str(work), ds_out=dir.c2_r5_tx22_timeclass);
+
+* how to check design;
+proc tabulate data=_outcomes;where sim=1;
+class cluster time;
+var trt;
+table cluster,time*trt*mean*f=2.1;
+run; 
 
 
 
 
-
-
-* simulation check;
-data a; set dir.c2_r5_tx22_timecont;
-x=trt_est; y=lag10(x);
-run;
-proc sgpanel data=a; panelby hypo; scatter x=x y=y;run;
 
