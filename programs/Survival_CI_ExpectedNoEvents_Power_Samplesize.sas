@@ -281,3 +281,49 @@ run;
 
 proc print data=a noobs;var alpha power_aim d_needed accrual fu eventfree_c milestone_c hr N_c N_i theta events power hr_95lower hr hr_95upper; 
 run;
+
+
+*** from survival probabilities:number of events needed;
+data a;
+alpha=0.05; *two-sided;
+beta=0.20; *1-power;
+theta=1/2;
+S_0=0.32; *survival at milestone in the control arm;
+S_1=0.58; * idem at the same milestone in the exp arm;
+hr=log(S_1)/log(S_0);
+delta=abs(log(hr) );
+d=( probit(1-alpha/2) + probit(1-beta) )**2  / ( delta**2 * theta * (1-theta)) ;
+run;
+
+proc print;run;
+
+* accrual/followup for expected number of events from survival probabilities in each arm at milestones and exponential survival, so projection of timings of events *****;
+
+data a;
+* according to Cox proportional hazards, Fundamentals of clinical trials, Friedman et al., p. 154;
+accrual= 24 ; *accrual time;
+do fu=24; * followup after finishing recruitment;
+N_c= 45; * sample size in the control group;
+N_i= 45; * sample size intervention group;
+* control group;
+milestone_0=24; * 2 year;
+S_0=0.32; *survival at milestone in the control arm;
+lambda_c= - log(S_0)/milestone_0;
+*experimental group;
+milestone_1=24; * 2 year;
+S_1=0.58; * idem at the same milestone in the exp arm;lambda_i= -log(0.5)/median_i;
+lambda_i= -log(S_1)/milestone_1;
+* expected number of events;
+proportiondeaths_c=(	exp(-lambda_c*fu) -  exp(-lambda_c*(accrual+fu))	) / (lambda_c*accrual);
+events_c=N_c*(1- proportiondeaths_c);
+* intervention group;
+proportiondeaths_i=(	exp(-lambda_i*fu) -  exp(-lambda_i*(accrual+fu))	) / (lambda_i*accrual);
+events_i=N_i*(1- proportiondeaths_i);
+* total numbers of events;
+events=events_c+events_i;
+output;
+end;
+run;
+
+proc print data=a;run;
+
