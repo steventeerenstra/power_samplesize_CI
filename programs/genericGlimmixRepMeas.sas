@@ -1,5 +1,5 @@
 
-*executing program;
+*path to (this) executing program;
 %macro ExecPrg;
 %if %sysfunc(getoption(sysin)) ne %str() %then %do;
   /* Batch Execution */
